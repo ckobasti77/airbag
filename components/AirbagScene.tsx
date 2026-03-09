@@ -279,8 +279,8 @@ function Hotspot({
 
   return (
     <group position={data.position}>
+      {/* Invisible larger touch target for mobile */}
       <mesh
-        ref={coreRef}
         onClick={(e) => {
           e.stopPropagation();
           onClick(data);
@@ -292,6 +292,11 @@ function Hotspot({
           document.body.classList.remove("hovering-3d");
         }}
       >
+        <sphereGeometry args={[0.18, 8, 8]} />
+        <meshBasicMaterial visible={false} />
+      </mesh>
+
+      <mesh ref={coreRef}>
         <sphereGeometry args={[0.055, 16, 16]} />
         <meshStandardMaterial
           color="#FF8C00"
@@ -319,6 +324,23 @@ function Hotspot({
       </mesh>
     </group>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RESPONSIVE FOV — wider on portrait / small screens
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ResponsiveFov() {
+  const { camera, size } = useThree();
+
+  useEffect(() => {
+    const cam = camera as THREE.PerspectiveCamera;
+    const aspect = size.width / size.height;
+    cam.fov = aspect < 1 ? 62 : aspect < 1.4 ? 52 : 45;
+    cam.updateProjectionMatrix();
+  }, [camera, size]);
+
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -497,6 +519,7 @@ function SceneContent({
       />
 
       {/* ── Camera ── */}
+      <ResponsiveFov />
       <CameraRig focusTarget={activeHotspot} />
 
       {/* ── Main scene group ── */}
@@ -653,7 +676,7 @@ function SystemLogs({ activeHotspot }: { activeHotspot: HotspotData | null }) {
   return (
     <div
       ref={containerRef}
-      className="absolute bottom-8 left-8 font-mono text-[10px] space-y-1 select-none pointer-events-none z-10"
+      className="hidden md:block absolute bottom-8 left-8 font-mono text-[10px] space-y-1 select-none pointer-events-none z-10"
     >
       {logs.map((log) => (
         <div
@@ -686,17 +709,22 @@ function InfoCard({
   useEffect(() => {
     if (!cardRef.current) return;
     const els = cardRef.current.querySelectorAll(".card-row");
+    const isMobile = window.innerWidth < 768;
+
     gsap.fromTo(
       cardRef.current,
-      { x: "100%", opacity: 0 },
-      { x: "0%", opacity: 1, duration: 0.55, ease: "power3.out" }
+      isMobile ? { y: "100%", opacity: 0 } : { x: "100%", opacity: 0 },
+      isMobile
+        ? { y: "0%", opacity: 1, duration: 0.5, ease: "power3.out" }
+        : { x: "0%", opacity: 1, duration: 0.55, ease: "power3.out" }
     );
     gsap.fromTo(
       els,
-      { opacity: 0, x: 20 },
+      { opacity: 0, x: isMobile ? 0 : 20, y: isMobile ? 12 : 0 },
       {
         opacity: 1,
         x: 0,
+        y: 0,
         duration: 0.4,
         stagger: 0.07,
         delay: 0.3,
@@ -716,9 +744,9 @@ function InfoCard({
   return (
     <div
       ref={cardRef}
-      className="absolute top-4 right-4 bottom-4 w-80 max-w-[calc(100%-2rem)] z-20"
+      className="absolute inset-x-0 bottom-0 md:inset-x-auto md:top-4 md:right-4 md:bottom-4 md:w-80 z-20"
     >
-      <div className="h-full bg-[#0D0D0D]/92 backdrop-blur-xl border border-[#FF8C00]/25 rounded-lg p-6 flex flex-col shadow-2xl shadow-[#FF8C00]/5">
+      <div className="max-h-[70vh] md:max-h-none md:h-full bg-[#0D0D0D]/95 backdrop-blur-xl border border-[#FF8C00]/25 rounded-t-xl md:rounded-lg p-5 md:p-6 flex flex-col shadow-2xl shadow-[#FF8C00]/5 overflow-y-auto">
         {/* Header */}
         <div className="card-row flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -875,14 +903,15 @@ export default function AirbagScene() {
       <SystemLogs activeHotspot={activeHotspot} />
 
       {!activeHotspot && (
-        <div className="absolute bottom-6 right-8 text-zinc-600 text-[10px] font-mono flex items-center gap-2 select-none pointer-events-none">
+        <div className="absolute bottom-4 right-4 md:bottom-6 md:right-8 text-zinc-600 text-[9px] md:text-[10px] font-mono flex items-center gap-2 select-none pointer-events-none">
           <span className="inline-block w-4 h-4 border border-zinc-700 rounded-full relative">
             <span
               className="absolute inset-[3px] border-t border-l border-zinc-600 rounded-full animate-spin"
               style={{ animationDuration: "3s" }}
             />
           </span>
-          DRAG TO ORBIT · CLICK HOTSPOT
+          <span className="hidden md:inline">DRAG TO ORBIT · CLICK HOTSPOT</span>
+          <span className="md:hidden">TAP HOTSPOT</span>
         </div>
       )}
     </div>

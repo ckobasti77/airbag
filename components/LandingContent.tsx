@@ -211,9 +211,9 @@ function CatalogCard({
       <div className="p-5 pt-3">
         <div className="space-y-0">
           <div className="flex items-center text-[10px] font-mono uppercase tracking-[0.15em] text-zinc-600 mb-2">
-            <span className="flex-1">Deo</span>
-            <span className="w-24 text-right">OEM</span>
-            <span className="w-16 text-right">Status</span>
+            <span className="flex-1 min-w-0">Deo</span>
+            <span className="w-20 sm:w-24 text-right shrink-0">OEM</span>
+            <span className="w-12 sm:w-16 text-right shrink-0">Status</span>
           </div>
 
           {model.parts.map((part, i) => (
@@ -221,13 +221,13 @@ function CatalogCard({
               key={i}
               className="flex items-center py-1.5 border-t border-zinc-800/50 text-sm"
             >
-              <span className="flex-1 text-zinc-300 text-[13px]">
+              <span className="flex-1 min-w-0 text-zinc-300 text-[12px] sm:text-[13px] truncate pr-2">
                 {part.name}
               </span>
-              <span className="w-24 text-right font-mono text-[11px] text-[#FACC15]/70">
+              <span className="w-20 sm:w-24 text-right font-mono text-[10px] sm:text-[11px] text-[#FACC15]/70 shrink-0">
                 {part.oem}
               </span>
-              <span className="w-16 flex justify-end">
+              <span className="w-12 sm:w-16 flex justify-end shrink-0">
                 <span
                   className={`inline-flex items-center gap-1 text-[10px] font-mono ${
                     part.status === "Na stanju"

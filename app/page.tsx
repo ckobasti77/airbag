@@ -5,14 +5,14 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0D0D0D]">
       {/* ─── Hero Section ────────────────────────────────────────────────── */}
-      <section className="relative h-screen w-full overflow-hidden">
+      <section className="relative h-hero w-full overflow-hidden">
         {/* 3D Canvas (full bleed) */}
         <div className="absolute inset-0">
           <HeroCanvas />
         </div>
 
         {/* Hero text overlay */}
-        <div className="relative z-10 flex flex-col justify-end h-full pb-20 px-6 md:px-12 lg:px-20 pointer-events-none">
+        <div className="relative z-10 flex flex-col justify-end h-full pb-28 md:pb-20 px-4 md:px-12 lg:px-20 pointer-events-none">
           <div className="max-w-2xl">
             {/* Tag */}
             <div className="flex items-center gap-2 mb-4">
