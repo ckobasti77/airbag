@@ -28,6 +28,13 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* ─── Custom cursor — hide default on pointer devices ───────────────────── */
+
+.has-custom-cursor,
+.has-custom-cursor * {
+  cursor: none !important;
+}
+
 /* ─── Scrollbar ─────────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar {

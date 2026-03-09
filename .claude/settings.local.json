@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(node:*)",
+      "Bash(npx vercel:*)"
     ]
   }
 }

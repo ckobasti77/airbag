@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import MagneticCursor from "@/components/MagneticCursor";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -51,6 +52,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#0D0D0D] text-zinc-100`}
       >
         {children}
+        <MagneticCursor />
       </body>
     </html>
   );

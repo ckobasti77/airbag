@@ -41,12 +41,14 @@ export default function Home() {
               <a
                 href="#katalog"
                 className="inline-flex items-center gap-2 bg-[#FF8C00] hover:bg-[#e67e00] active:bg-[#cc7000] text-black font-bold py-3 px-7 rounded-md transition-colors text-sm tracking-wide"
+                data-magnetic
               >
                 POGLEDAJ KATALOG
               </a>
               <a
                 href="#kontakt"
                 className="inline-flex items-center gap-2 bg-white/[0.05] hover:bg-white/[0.1] border border-zinc-700 hover:border-[#FF8C00]/30 text-white font-semibold py-3 px-7 rounded-md transition-all text-sm"
+                data-magnetic
               >
                 KONTAKT
               </a>

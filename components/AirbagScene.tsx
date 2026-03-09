@@ -1,14 +1,20 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Edges, Grid } from "@react-three/drei";
+import { Suspense } from "react";
+import {
+  OrbitControls,
+  Edges,
+  Grid,
+  ContactShadows,
+} from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 import { type HotspotData, HOTSPOTS } from "@/lib/data";
 import { X, Package, Hash, CircleDot } from "lucide-react";
 
-// ─── Shared scroll state (module-level, avoids re-renders) ──────────────────
+// ─── Shared scroll state (module-level, zero re-renders) ────────────────────
 
 const scrollState = { progress: 0 };
 
@@ -16,62 +22,63 @@ const scrollState = { progress: 0 };
 
 const DEFAULT_CAM_POS: [number, number, number] = [3.5, 2.5, 4.5];
 const DEFAULT_TARGET: [number, number, number] = [0, 0.3, 0];
-const EDGE_COLOR = "#FF8C00";
+const EDGE_BRIGHT = "#FF8C00";
+const EDGE_MID = "#4d2a00";
+const EDGE_DIM = "#2b1800";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 3D GEOMETRY COMPONENTS
+// 3D GEOMETRY — Industrial-grade materials
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function SteeringWheel() {
   return (
     <group position={[0, 0.4, 0.9]} rotation={[-Math.PI * 0.35, 0, 0]}>
-      {/* Wheel ring */}
       <mesh>
-        <torusGeometry args={[0.38, 0.022, 16, 48]} />
+        <torusGeometry args={[0.38, 0.024, 16, 48]} />
         <meshStandardMaterial
-          color="#1a1a1a"
-          roughness={0.3}
-          metalness={0.8}
+          color="#1e1e1e"
+          roughness={0.15}
+          metalness={0.92}
+          envMapIntensity={0.8}
         />
-        <Edges threshold={15} color={EDGE_COLOR} />
+        <Edges threshold={15} color={EDGE_BRIGHT} />
       </mesh>
 
-      {/* Center hub */}
       <mesh>
-        <cylinderGeometry args={[0.11, 0.11, 0.025, 24]} />
+        <cylinderGeometry args={[0.11, 0.11, 0.028, 24]} />
         <meshStandardMaterial
           color="#1c1c1c"
-          roughness={0.4}
-          metalness={0.7}
+          roughness={0.25}
+          metalness={0.85}
+          envMapIntensity={0.7}
         />
-        <Edges threshold={15} color={EDGE_COLOR} />
+        <Edges threshold={15} color={EDGE_BRIGHT} />
       </mesh>
 
-      {/* Spokes */}
       {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((angle, i) => (
         <mesh
           key={i}
           position={[Math.cos(angle) * 0.19, 0, Math.sin(angle) * 0.19]}
           rotation={[Math.PI / 2, angle, 0]}
         >
-          <boxGeometry args={[0.028, 0.38, 0.012]} />
+          <boxGeometry args={[0.028, 0.38, 0.013]} />
           <meshStandardMaterial
             color="#1a1a1a"
-            roughness={0.3}
-            metalness={0.8}
+            roughness={0.2}
+            metalness={0.88}
           />
         </mesh>
       ))}
 
-      {/* Steering column */}
       <mesh position={[0, -0.35, 0]}>
         <cylinderGeometry args={[0.035, 0.055, 0.7, 12]} />
         <meshStandardMaterial
           color="#151515"
-          roughness={0.5}
-          metalness={0.6}
+          roughness={0.4}
+          metalness={0.7}
+          envMapIntensity={0.4}
         />
-        <Edges threshold={15} color="#FF8C0040" />
+        <Edges threshold={15} color={EDGE_DIM} />
       </mesh>
     </group>
   );
@@ -80,62 +87,61 @@ function SteeringWheel() {
 function Dashboard() {
   return (
     <group>
-      {/* Main dashboard body */}
       <mesh position={[0, 0.2, -0.2]}>
         <boxGeometry args={[3.2, 0.5, 0.8]} />
         <meshStandardMaterial
-          color="#141414"
-          roughness={0.6}
-          metalness={0.5}
+          color="#161616"
+          roughness={0.55}
+          metalness={0.65}
+          envMapIntensity={0.5}
         />
-        <Edges threshold={15} color="#FF8C0025" />
+        <Edges threshold={15} color={EDGE_DIM} />
       </mesh>
 
-      {/* Dashboard top surface */}
       <mesh position={[0, 0.5, -0.1]} rotation={[-0.15, 0, 0]}>
         <boxGeometry args={[3.0, 0.05, 0.9]} />
         <meshStandardMaterial
-          color="#181818"
-          roughness={0.7}
-          metalness={0.4}
+          color="#1a1a1a"
+          roughness={0.65}
+          metalness={0.5}
+          envMapIntensity={0.3}
         />
-        <Edges threshold={15} color="#FF8C0018" />
+        <Edges threshold={15} color="#241400" />
       </mesh>
 
-      {/* Instrument cluster */}
       <mesh position={[-0.05, 0.45, 0.15]} rotation={[-0.4, 0, 0]}>
         <boxGeometry args={[0.55, 0.025, 0.32]} />
         <meshStandardMaterial
-          color="#0a0a0a"
-          roughness={0.2}
-          metalness={0.9}
+          color="#080808"
+          roughness={0.08}
+          metalness={0.95}
           emissive="#FF8C00"
-          emissiveIntensity={0.03}
+          emissiveIntensity={0.04}
+          envMapIntensity={1.2}
         />
       </mesh>
 
-      {/* Center infotainment display */}
       <mesh position={[0.5, 0.45, 0.0]} rotation={[-0.3, 0, 0]}>
         <boxGeometry args={[0.42, 0.018, 0.26]} />
         <meshStandardMaterial
-          color="#0a0a0a"
-          roughness={0.1}
-          metalness={0.9}
+          color="#080808"
+          roughness={0.05}
+          metalness={0.95}
           emissive="#FF8C00"
-          emissiveIntensity={0.05}
+          emissiveIntensity={0.06}
+          envMapIntensity={1.2}
         />
       </mesh>
 
-      {/* Air vents */}
       {[-0.7, 0.0, 0.7, 1.3].map((x, i) => (
         <mesh key={i} position={[x, 0.35, 0.2]}>
           <boxGeometry args={[0.16, 0.055, 0.035]} />
           <meshStandardMaterial
-            color="#111111"
-            roughness={0.5}
-            metalness={0.7}
+            color="#111"
+            roughness={0.4}
+            metalness={0.75}
           />
-          <Edges threshold={15} color="#FF8C0035" />
+          <Edges threshold={15} color={EDGE_MID} />
         </mesh>
       ))}
     </group>
@@ -145,58 +151,34 @@ function Dashboard() {
 function CenterConsole() {
   return (
     <group>
-      {/* Console body */}
       <mesh position={[0, -0.15, 0.5]}>
         <boxGeometry args={[0.48, 0.32, 1.15]} />
         <meshStandardMaterial
-          color="#131313"
-          roughness={0.6}
-          metalness={0.5}
+          color="#141414"
+          roughness={0.55}
+          metalness={0.6}
+          envMapIntensity={0.4}
         />
-        <Edges threshold={15} color="#FF8C0018" />
+        <Edges threshold={15} color={EDGE_DIM} />
       </mesh>
 
-      {/* Gear shifter base */}
       <mesh position={[0, 0.08, 0.6]}>
         <cylinderGeometry args={[0.022, 0.028, 0.14, 8]} />
-        <meshStandardMaterial color="#222" roughness={0.3} metalness={0.8} />
-      </mesh>
-
-      {/* Gear knob */}
-      <mesh position={[0, 0.18, 0.6]}>
-        <sphereGeometry args={[0.035, 12, 12]} />
         <meshStandardMaterial
-          color="#1a1a1a"
-          roughness={0.2}
-          metalness={0.9}
+          color="#2a2a2a"
+          roughness={0.15}
+          metalness={0.95}
         />
       </mesh>
-    </group>
-  );
-}
 
-function APillars() {
-  return (
-    <group>
-      {/* Left A-pillar */}
-      <mesh position={[-1.55, 0.7, -0.1]} rotation={[0, 0, 0.2]}>
-        <boxGeometry args={[0.055, 0.95, 0.07]} />
-        <meshStandardMaterial color="#111" roughness={0.7} metalness={0.4} />
-        <Edges threshold={15} color="#FF8C0035" />
-      </mesh>
-
-      {/* Right A-pillar */}
-      <mesh position={[1.55, 0.7, -0.1]} rotation={[0, 0, -0.2]}>
-        <boxGeometry args={[0.055, 0.95, 0.07]} />
-        <meshStandardMaterial color="#111" roughness={0.7} metalness={0.4} />
-        <Edges threshold={15} color="#FF8C0035" />
-      </mesh>
-
-      {/* Roof crossbeam */}
-      <mesh position={[0, 1.15, -0.2]}>
-        <boxGeometry args={[3.0, 0.035, 0.09]} />
-        <meshStandardMaterial color="#111" roughness={0.7} metalness={0.4} />
-        <Edges threshold={15} color="#FF8C0025" />
+      <mesh position={[0, 0.18, 0.6]}>
+        <sphereGeometry args={[0.035, 16, 16]} />
+        <meshStandardMaterial
+          color="#1e1e1e"
+          roughness={0.1}
+          metalness={0.95}
+          envMapIntensity={1.0}
+        />
       </mesh>
     </group>
   );
@@ -205,37 +187,34 @@ function APillars() {
 function SeatOutlines() {
   return (
     <group>
-      {/* Driver seat */}
       <mesh position={[-0.5, -0.15, 1.4]}>
         <boxGeometry args={[0.55, 0.25, 0.6]} />
         <meshStandardMaterial
-          color="#111"
-          roughness={0.8}
-          metalness={0.3}
+          color="#131313"
+          roughness={0.85}
+          metalness={0.2}
           transparent
-          opacity={0.6}
+          opacity={0.55}
         />
-        <Edges threshold={15} color="#FF8C0015" />
+        <Edges threshold={15} color="#1f1100" />
       </mesh>
-
-      {/* Passenger seat */}
       <mesh position={[0.9, -0.15, 1.4]}>
         <boxGeometry args={[0.55, 0.25, 0.6]} />
         <meshStandardMaterial
-          color="#111"
-          roughness={0.8}
-          metalness={0.3}
+          color="#131313"
+          roughness={0.85}
+          metalness={0.2}
           transparent
-          opacity={0.6}
+          opacity={0.55}
         />
-        <Edges threshold={15} color="#FF8C0015" />
+        <Edges threshold={15} color="#1f1100" />
       </mesh>
     </group>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// HOTSPOT COMPONENT
+// HOTSPOT — GSAP pulsing spheres
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function Hotspot({
@@ -257,7 +236,6 @@ function Hotspot({
 
     const tweens: gsap.core.Tween[] = [];
 
-    // Core pulse
     tweens.push(
       gsap.to(core.scale, {
         x: 1.35,
@@ -271,7 +249,6 @@ function Hotspot({
     );
 
     if (ring) {
-      // Ring expand/contract
       tweens.push(
         gsap.to(ring.scale, {
           x: 1.6,
@@ -283,8 +260,6 @@ function Hotspot({
           repeat: -1,
         })
       );
-
-      // Ring opacity pulse
       const mat = ring.material as THREE.MeshStandardMaterial;
       tweens.push(
         gsap.to(mat, {
@@ -304,7 +279,6 @@ function Hotspot({
 
   return (
     <group position={data.position}>
-      {/* Core sphere */}
       <mesh
         ref={coreRef}
         onClick={(e) => {
@@ -312,10 +286,10 @@ function Hotspot({
           onClick(data);
         }}
         onPointerOver={() => {
-          document.body.style.cursor = "pointer";
+          document.body.classList.add("hovering-3d");
         }}
         onPointerOut={() => {
-          document.body.style.cursor = "auto";
+          document.body.classList.remove("hovering-3d");
         }}
       >
         <sphereGeometry args={[0.055, 16, 16]} />
@@ -328,7 +302,6 @@ function Hotspot({
         />
       </mesh>
 
-      {/* Pulse ring */}
       <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.095, 0.006, 8, 32]} />
         <meshStandardMaterial
@@ -340,7 +313,6 @@ function Hotspot({
         />
       </mesh>
 
-      {/* Glow sphere */}
       <mesh>
         <sphereGeometry args={[0.11, 16, 16]} />
         <meshBasicMaterial color="#FF8C00" transparent opacity={0.08} />
@@ -350,7 +322,7 @@ function Hotspot({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// CAMERA CONTROLLER
+// CAMERA RIG
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function CameraRig({ focusTarget }: { focusTarget: HotspotData | null }) {
@@ -419,7 +391,7 @@ function CameraRig({ focusTarget }: { focusTarget: HotspotData | null }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SCENE CONTENT (inside Canvas)
+// SCENE CONTENT — Exploded view + Environment + ContactShadows
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function SceneContent({
@@ -429,57 +401,160 @@ function SceneContent({
   activeHotspot: HotspotData | null;
   onHotspotClick: (d: HotspotData) => void;
 }) {
-  const groupRef = useRef<THREE.Group>(null!);
+  const mainRef = useRef<THREE.Group>(null!);
+
+  // Exploded-view refs (wrap each sub-assembly)
+  const steeringGrp = useRef<THREE.Group>(null!);
+  const dashboardGrp = useRef<THREE.Group>(null!);
+  const consoleGrp = useRef<THREE.Group>(null!);
+  const leftPillarGrp = useRef<THREE.Group>(null!);
+  const rightPillarGrp = useRef<THREE.Group>(null!);
+  const roofGrp = useRef<THREE.Group>(null!);
+  const seatsGrp = useRef<THREE.Group>(null!);
+
   const timeRef = useRef(0);
+  const explodeRef = useRef(0);
 
   useFrame((_, delta) => {
-    if (!groupRef.current || activeHotspot) return;
+    if (!mainRef.current) return;
 
     timeRef.current += delta;
 
-    // Gentle idle sway
-    const autoY = Math.sin(timeRef.current * 0.25) * 0.12;
-    // Scroll-driven rotation
-    const scrollY = scrollState.progress * Math.PI * 0.4;
-    // Combine & interpolate
-    const targetY = autoY + scrollY;
-    groupRef.current.rotation.y +=
-      (targetY - groupRef.current.rotation.y) * 0.035;
+    // ── Idle sway + scroll rotation ──
+    if (!activeHotspot) {
+      const autoY = Math.sin(timeRef.current * 0.25) * 0.12;
+      const scrollY = scrollState.progress * Math.PI * 0.4;
+      const targetY = autoY + scrollY;
+      mainRef.current.rotation.y +=
+        (targetY - mainRef.current.rotation.y) * 0.035;
+    }
+
+    // ── Exploded view (sin wave peaks at 50% scroll) ──
+    const targetExplode = activeHotspot
+      ? 0
+      : Math.sin(scrollState.progress * Math.PI) * 0.55;
+    explodeRef.current += (targetExplode - explodeRef.current) * 0.04;
+    const e = explodeRef.current;
+
+    // Move sub-assemblies apart
+    steeringGrp.current.position.z = e * 0.55;
+    steeringGrp.current.position.y = e * 0.08;
+
+    dashboardGrp.current.position.z = e * -0.45;
+    dashboardGrp.current.position.y = e * 0.12;
+
+    consoleGrp.current.position.y = e * -0.22;
+
+    leftPillarGrp.current.position.x = e * -0.38;
+    leftPillarGrp.current.position.y = e * 0.08;
+
+    rightPillarGrp.current.position.x = e * 0.38;
+    rightPillarGrp.current.position.y = e * 0.08;
+
+    roofGrp.current.position.y = e * 0.35;
+
+    seatsGrp.current.position.z = e * 0.45;
+    seatsGrp.current.position.y = e * -0.1;
   });
 
   return (
     <>
-      {/* Lighting rig */}
-      <ambientLight intensity={0.25} color="#e8e0d8" />
+      {/* ── Lighting rig ── */}
+      <ambientLight intensity={0.2} color="#e0dcd6" />
       <directionalLight
-        position={[5, 5, 5]}
-        intensity={0.75}
+        position={[5, 8, 5]}
+        intensity={0.65}
         color="#fff5e6"
       />
       <directionalLight
-        position={[-3, 3, -3]}
-        intensity={0.25}
-        color="#4488ff"
+        position={[-4, 3, -4]}
+        intensity={0.2}
+        color="#6688cc"
       />
       <pointLight
-        position={[0, 2, 2]}
-        intensity={0.45}
+        position={[0, 2.5, 2.5]}
+        intensity={0.5}
         color="#FF8C00"
-        distance={6}
+        distance={7}
+        decay={2}
+      />
+      <pointLight
+        position={[3, 1, -2]}
+        intensity={0.12}
+        color="#88aaff"
+        distance={5}
         decay={2}
       />
 
-      {/* Camera rig */}
+      {/* ── Rim / fill lights (replaces HDR environment) ── */}
+      <directionalLight
+        position={[-2, 4, 6]}
+        intensity={0.3}
+        color="#ffd4a0"
+      />
+      <hemisphereLight
+        args={["#2a1a00", "#0a0a14", 0.35]}
+      />
+
+      {/* ── Camera ── */}
       <CameraRig focusTarget={activeHotspot} />
 
-      {/* Car interior group */}
-      <group ref={groupRef}>
-        <SteeringWheel />
-        <Dashboard />
-        <CenterConsole />
-        <APillars />
-        <SeatOutlines />
+      {/* ── Main scene group ── */}
+      <group ref={mainRef}>
+        <group ref={steeringGrp}>
+          <SteeringWheel />
+        </group>
 
+        <group ref={dashboardGrp}>
+          <Dashboard />
+        </group>
+
+        <group ref={consoleGrp}>
+          <CenterConsole />
+        </group>
+
+        {/* A-pillars inlined for individual refs */}
+        <group ref={leftPillarGrp}>
+          <mesh position={[-1.55, 0.7, -0.1]} rotation={[0, 0, 0.2]}>
+            <boxGeometry args={[0.055, 0.95, 0.07]} />
+            <meshStandardMaterial
+              color="#121212"
+              roughness={0.6}
+              metalness={0.5}
+            />
+            <Edges threshold={15} color={EDGE_MID} />
+          </mesh>
+        </group>
+
+        <group ref={rightPillarGrp}>
+          <mesh position={[1.55, 0.7, -0.1]} rotation={[0, 0, -0.2]}>
+            <boxGeometry args={[0.055, 0.95, 0.07]} />
+            <meshStandardMaterial
+              color="#121212"
+              roughness={0.6}
+              metalness={0.5}
+            />
+            <Edges threshold={15} color={EDGE_MID} />
+          </mesh>
+        </group>
+
+        <group ref={roofGrp}>
+          <mesh position={[0, 1.15, -0.2]}>
+            <boxGeometry args={[3.0, 0.035, 0.09]} />
+            <meshStandardMaterial
+              color="#121212"
+              roughness={0.6}
+              metalness={0.5}
+            />
+            <Edges threshold={15} color={EDGE_DIM} />
+          </mesh>
+        </group>
+
+        <group ref={seatsGrp}>
+          <SeatOutlines />
+        </group>
+
+        {/* Hotspots */}
         {HOTSPOTS.map((hs) => (
           <Hotspot
             key={hs.id}
@@ -490,7 +565,20 @@ function SceneContent({
         ))}
       </group>
 
-      {/* Blueprint grid floor */}
+      {/* ── ContactShadows for depth ── */}
+      <Suspense fallback={null}>
+        <ContactShadows
+          position={[0, -0.36, 0]}
+          opacity={0.3}
+          scale={7}
+          blur={2.2}
+          far={3}
+          resolution={256}
+          color="#000"
+        />
+      </Suspense>
+
+      {/* ── Blueprint grid floor ── */}
       <Grid
         position={[0, -0.35, 0]}
         args={[12, 12]}
@@ -510,6 +598,79 @@ function SceneContent({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SYSTEM LOGS — Micro-copy telemetry overlay
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface LogLine {
+  prefix: string;
+  text: string;
+  value: string;
+  variant: "ok" | "warn" | "dim";
+}
+
+function SystemLogs({ activeHotspot }: { activeHotspot: HotspotData | null }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const logs: LogLine[] = useMemo(() => {
+    if (!activeHotspot) {
+      return [
+        { prefix: "SYS", text: "AIRBAG MODULE", value: "v2.4.1", variant: "dim" },
+        { prefix: "NET", text: "OEM Database", value: "STANDBY", variant: "dim" },
+      ];
+    }
+    return [
+      { prefix: "SCN", text: `Target: ${activeHotspot.oem}`, value: "LOCKED", variant: "ok" },
+      { prefix: "CHK", text: "Pressure sensor", value: "NOMINAL", variant: "ok" },
+      { prefix: "CHK", text: "Igniter circuit", value: "READY", variant: "ok" },
+      { prefix: "OEM", text: "Part verified", value: "MATCH", variant: "ok" },
+      {
+        prefix: "STS",
+        text: "Availability",
+        value: activeHotspot.status === "Na stanju" ? "IN STOCK" : "ON ORDER",
+        variant: activeHotspot.status === "Na stanju" ? "ok" : "warn",
+      },
+    ];
+  }, [activeHotspot]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const lines = containerRef.current.querySelectorAll(".syslog-line");
+    gsap.fromTo(
+      lines,
+      { opacity: 0, x: -12 },
+      {
+        opacity: 1,
+        x: 0,
+        duration: 0.3,
+        stagger: 0.06,
+        ease: "power2.out",
+      }
+    );
+  }, [logs]);
+
+  const colorMap = { ok: "text-emerald-500", warn: "text-[#FACC15]", dim: "text-zinc-500" };
+
+  return (
+    <div
+      ref={containerRef}
+      className="absolute bottom-8 left-8 font-mono text-[10px] space-y-1 select-none pointer-events-none z-10"
+    >
+      {logs.map((log) => (
+        <div
+          key={`${log.prefix}-${log.text}`}
+          className="syslog-line flex items-center gap-2"
+        >
+          <span className="text-[#FF8C00]/50">[{log.prefix}]</span>
+          <span className="text-zinc-600">{log.text}</span>
+          <span className="text-zinc-700">···</span>
+          <span className={colorMap[log.variant]}>{log.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // OVERLAY INFO CARD
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -524,10 +685,23 @@ function InfoCard({
 
   useEffect(() => {
     if (!cardRef.current) return;
+    const els = cardRef.current.querySelectorAll(".card-row");
     gsap.fromTo(
       cardRef.current,
       { x: "100%", opacity: 0 },
       { x: "0%", opacity: 1, duration: 0.55, ease: "power3.out" }
+    );
+    gsap.fromTo(
+      els,
+      { opacity: 0, x: 20 },
+      {
+        opacity: 1,
+        x: 0,
+        duration: 0.4,
+        stagger: 0.07,
+        delay: 0.3,
+        ease: "power2.out",
+      }
     );
   }, [data.id]);
 
@@ -546,7 +720,7 @@ function InfoCard({
     >
       <div className="h-full bg-[#0D0D0D]/92 backdrop-blur-xl border border-[#FF8C00]/25 rounded-lg p-6 flex flex-col shadow-2xl shadow-[#FF8C00]/5">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="card-row flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-[#FF8C00] border border-[#FF8C00]/40 px-2 py-0.5 rounded font-bold">
               {data.label}
@@ -558,22 +732,20 @@ function InfoCard({
           <button
             onClick={onClose}
             className="text-zinc-500 hover:text-white transition-colors p-1"
+            data-magnetic
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-[#FF8C00]/40 via-[#FF8C00]/10 to-transparent mb-5" />
+        <div className="card-row h-px bg-gradient-to-r from-[#FF8C00]/40 via-[#FF8C00]/10 to-transparent mb-5" />
 
-        {/* Part name */}
-        <h3 className="text-xl font-semibold text-white mb-5 tracking-tight">
+        <h3 className="card-row text-xl font-semibold text-white mb-5 tracking-tight">
           {data.part}
         </h3>
 
-        {/* Data rows */}
         <div className="space-y-2.5 flex-1">
-          <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.04] rounded-md px-3.5 py-2.5">
+          <div className="card-row flex items-center gap-3 bg-white/[0.03] border border-white/[0.04] rounded-md px-3.5 py-2.5">
             <Hash size={13} className="text-[#FF8C00] shrink-0" />
             <div>
               <span className="text-zinc-500 text-[10px] uppercase tracking-wider block">
@@ -585,7 +757,7 @@ function InfoCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.04] rounded-md px-3.5 py-2.5">
+          <div className="card-row flex items-center gap-3 bg-white/[0.03] border border-white/[0.04] rounded-md px-3.5 py-2.5">
             <CircleDot size={13} className="text-[#FF8C00] shrink-0" />
             <div>
               <span className="text-zinc-500 text-[10px] uppercase tracking-wider block">
@@ -603,7 +775,7 @@ function InfoCard({
             </div>
           </div>
 
-          <div className="flex items-start gap-3 bg-white/[0.03] border border-white/[0.04] rounded-md px-3.5 py-2.5">
+          <div className="card-row flex items-start gap-3 bg-white/[0.03] border border-white/[0.04] rounded-md px-3.5 py-2.5">
             <Package size={13} className="text-[#FF8C00] shrink-0 mt-0.5" />
             <div>
               <span className="text-zinc-500 text-[10px] uppercase tracking-wider block">
@@ -616,15 +788,15 @@ function InfoCard({
           </div>
         </div>
 
-        {/* CTA */}
-        <button className="mt-5 w-full bg-[#FF8C00] hover:bg-[#e67e00] active:bg-[#cc7000] text-black font-bold py-3 rounded-md transition-colors text-sm tracking-wide">
+        <button
+          className="card-row mt-5 w-full bg-[#FF8C00] hover:bg-[#e67e00] active:bg-[#cc7000] text-black font-bold py-3 rounded-md transition-colors text-sm tracking-wide"
+          data-magnetic
+        >
           POŠALJI UPIT
         </button>
 
-        {/* Safety disclaimer */}
         <p className="mt-3 text-[9px] text-zinc-600 text-center font-mono leading-relaxed">
-          ⚠ Airbagovi su pirotehničke naprave i zahtevaju profesionalnu
-          ugradnju.
+          * Airbagovi su pirotehničke naprave i zahtevaju profesionalnu ugradnju.
         </p>
       </div>
     </div>
@@ -640,25 +812,21 @@ export default function AirbagScene() {
   const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Client-only mount (Canvas needs WebGL)
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // ScrollTrigger for scroll progress
   useEffect(() => {
     if (!mounted) return;
 
     const handleScroll = () => {
-      const maxScroll =
+      const max =
         document.documentElement.scrollHeight - window.innerHeight;
-      scrollState.progress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+      scrollState.progress = max > 0 ? window.scrollY / max : 0;
     };
 
-    // Use GSAP-style scroll tracking via passive listener
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // initial
-
+    handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, [mounted]);
 
@@ -668,14 +836,12 @@ export default function AirbagScene() {
 
   const handleClose = useCallback(() => {
     setActiveHotspot(null);
+    document.body.classList.remove("hovering-3d");
   }, []);
 
   if (!mounted) {
     return (
-      <div
-        ref={containerRef}
-        className="relative w-full h-full bg-[#0D0D0D]"
-      />
+      <div ref={containerRef} className="relative w-full h-full bg-[#0D0D0D]" />
     );
   }
 
@@ -688,7 +854,12 @@ export default function AirbagScene() {
           near: 0.1,
           far: 100,
         }}
-        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        dpr={[1, 1.5]}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance",
+        }}
         style={{ background: "transparent" }}
       >
         <SceneContent
@@ -697,18 +868,21 @@ export default function AirbagScene() {
         />
       </Canvas>
 
-      {/* Info overlay */}
       {activeHotspot && (
         <InfoCard data={activeHotspot} onClose={handleClose} />
       )}
 
-      {/* Interaction hint */}
+      <SystemLogs activeHotspot={activeHotspot} />
+
       {!activeHotspot && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-zinc-500 text-xs font-mono flex items-center gap-2 select-none pointer-events-none">
-          <span className="inline-block w-5 h-5 border border-zinc-600 rounded-full relative">
-            <span className="absolute inset-1 border-t border-l border-zinc-500 rounded-full animate-spin" style={{ animationDuration: "3s" }} />
+        <div className="absolute bottom-6 right-8 text-zinc-600 text-[10px] font-mono flex items-center gap-2 select-none pointer-events-none">
+          <span className="inline-block w-4 h-4 border border-zinc-700 rounded-full relative">
+            <span
+              className="absolute inset-[3px] border-t border-l border-zinc-600 rounded-full animate-spin"
+              style={{ animationDuration: "3s" }}
+            />
           </span>
-          Klikni na hotspot · Skroluj za rotaciju
+          DRAG TO ORBIT · CLICK HOTSPOT
         </div>
       )}
     </div>
